@@ -1,0 +1,38 @@
+{
+  "pwa": {
+    "skill": "app-pwa",
+    "version": "1.0.0",
+    "files": {
+      "client/src/components/dock.css": "7493f7d4b224bbe6",
+      "client/src/components/Dock.jsx": "6aa44530a8dfb3a1",
+      "client/src/lib/register-sw.js": "72842b212499fdf7",
+      "client/src/lib/register-sw.test.js": "127aade78581f306",
+      "client/src/sw.js": "3f78e42aaad38633",
+      "client/public/site.webmanifest": "4c11ca30930021d8",
+      "e2e/tests/dock.spec.js": "864a967e0093661e"
+    }
+  },
+  "tests": {
+    "skill": "app-tests",
+    "version": "1.0.0",
+    "files": {
+      "server/test/helpers.js": "277d837dd8f2368d",
+      "server/test/seed.js": "14e93461cdbe1d90",
+      "server/test/smoke.test.js": "368be69fcb981a0b",
+      "e2e/package.json": "d784b47611927d47",
+      "e2e/playwright.config.js": "b6576ab47df99255",
+      "e2e/tests/login.spec.js": "f9123931e9d62e7c",
+      ".github/workflows/tests.yml": "d0c22c8b4bff6b21"
+    }
+  },
+  "deploy": {
+    "skill": "app-deploy",
+    "version": "1.3.1",
+    "files": {
+      "server/backup.js": "3b198021a1be2b1c",
+      "server/test/backup.test.js": "360223b991ebe405",
+      "deploy/nginx.conf": "037d532fa53eeb4e",
+      "deploy/deploy.sh": "6344ce5529e423e2"
+    }
+  }
+}

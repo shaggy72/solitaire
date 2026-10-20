@@ -1,0 +1,223 @@
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, foundationFor, push, SUITS, RANKS,
+} from './lib/game.js';
+import { measure, place, cardKey } from './lib/layout.js';
+import { loadSaved, save } from './lib/storage.js';
+import Confetti from './Confetti.jsx';
+
+const SUIT_NAMES = ['schoppen', 'harten', 'ruiten', 'klaveren'];
+const RANK_NAMES = ['', 'aas', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'boer', 'dame', 'heer'];
+const name = (c) => `${SUIT_NAMES[c.s]} ${RANK_NAMES[c.r]}`;
+const START_MSG = 'Tik op een kaart en daarna op de plek waar hij naartoe moet.';
+const DOUBLE_TAP_MS = 380;
+
+const sameLoc = (a, b) => a && b && a.type === b.type && a.col === b.col && a.i === b.i && a.index === b.index;
+const destOf = (loc) => (loc.type === 'tableau' ? { type: 'tableau', col: loc.col } : loc.type === 'foundation' ? { type: 'foundation', i: loc.i } : null);
+
+function describeTip(game, tip) {
+  if (tip.kind === 'draw') return 'Trek een kaart van de stapel linksboven.';
+  if (tip.kind === 'stuck') return 'Er zijn geen zetten meer. Maak een zet ongedaan of begin een nieuw spel.';
+  if (tip.kind === 'won') return 'Het spel is al uitgespeeld!';
+  const card = tip.cards[0];
+  const what = tip.cards.length > 1 ? `de ${name(card)} (met de kaarten erop)` : `de ${name(card)}`;
+  if (tip.to.type === 'foundation') return `Leg ${what} bovenaan op de stapel rechtsboven.`;
+  const pile = game.tableau[tip.to.col];
+  const top = pile[pile.length - 1];
+  return top ? `Leg ${what} op de ${name(top)}.` : `Leg ${what} op de lege plek.`;
+}
+
+export default function App() {
+  const [initial] = useState(() => loadSaved());
+  const [game, setGame] = useState(() => initial?.game ?? deal());
+  const [history, setHistory] = useState(() => initial?.history ?? []);
+  const [sel, setSel] = useState(null);
+  const [tip, setTip] = useState(null);
+  const [msg, setMsg] = useState('');
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [auto, setAuto] = useState(false);
+  const [size, setSize] = useState({ W: 0, H: 0 });
+  const boardRef = useRef(null);
+  const lastTap = useRef({ loc: null, t: 0 });
+  const won = isWon(game);
+
+  useEffect(() => { save(game, history); }, [game, history]);
+
+  useLayoutEffect(() => {
+    const el = boardRef.current;
+    const update = () => setSize({ W: el.clientWidth, H: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const L = useMemo(() => measure(size.W || 800, size.H || 600), [size]);
+  const placed = useMemo(() => place(game, L), [game, L]);
+
+  const commit = useCallback((next, message = '') => {
+    if (next === game) return;
+    setHistory((h) => push(h, game));
+    setGame(next);
+    setSel(null);
+    setTip(null);
+    setMsg(message);
+  }, [game]);
+
+  // Maakt de rest vanzelf af, kaart voor kaart, als alles al open ligt.
+  useEffect(() => {
+    if (!auto) return undefined;
+    const t = setTimeout(() => {
+      const m = autoFoundationMove(game);
+      if (!m) { setAuto(false); return; }
+      setGame(move(game, m.from, m.to));
+    }, 150);
+    return () => clearTimeout(t);
+  }, [auto, game]);
+
+  const startAuto = () => { setHistory((h) => push(h, game)); setSel(null); setTip(null); setMsg(''); setAuto(true); };
+
+  const onUndo = () => {
+    if (!history.length || auto) return;
+    setGame(history[history.length - 1]);
+    setHistory(history.slice(0, -1));
+    setSel(null); setTip(null); setMsg('Je laatste zet is ongedaan gemaakt.');
+  };
+
+  const onTip = () => {
+    if (auto || won) return;
+    const t = hint(game);
+    setSel(null);
+    setTip(t);
+    setMsg(describeTip(game, t));
+  };
+
+  const newGame = () => {
+    setGame(deal()); setHistory([]); setSel(null); setTip(null); setMsg(''); setConfirmNew(false); setAuto(false);
+  };
+  const askNew = () => { if (won || game.moves === 0) newGame(); else setConfirmNew(true); };
+
+  const onTap = (loc) => {
+    if (auto || won) return;
+    if (loc.type === 'stock') { commit(draw(game)); return; }
+    const now = Date.now();
+    const dbl = sameLoc(lastTap.current.loc, loc) && now - lastTap.current.t < DOUBLE_TAP_MS;
+    lastTap.current = { loc, t: now };
+
+    // Dubbeltik: de bovenste kaart meteen naar boven (de funderingen).
+    if (dbl && loc.type !== 'foundation') {
+      const cards = grab(game, loc);
+      if (cards && cards.length === 1) {
+        const i = foundationFor(game, cards[0]);
+        if (i >= 0) { commit(move(game, loc, { type: 'foundation', i })); return; }
+      }
+    }
+    const dest = destOf(loc);
+    if (sel && dest && !sameLoc(sel, loc)) {
+      if (canMove(game, sel, dest)) { commit(move(game, sel, dest)); return; }
+    }
+    if (sameLoc(sel, loc)) { setSel(null); setMsg(''); return; }
+    const cards = grab(game, loc);
+    if (cards) {
+      setSel(loc); setTip(null);
+      setMsg(`Gekozen: ${name(cards[0])}. Tik nu op de plek waar hij naartoe moet.`);
+    } else if (sel && dest) {
+      setSel(null);
+      setMsg('Daar past die kaart niet. Kies een andere plek.');
+    } else {
+      setSel(null);
+    }
+  };
+
+  const selKeys = new Set(sel ? (grab(game, sel) ?? []).map(cardKey) : []);
+  const tipKeys = new Set(tip?.kind === 'move' ? tip.cards.map(cardKey) : []);
+  let tipRing = null;
+  if (tip?.kind === 'move') {
+    if (tip.to.type === 'foundation') tipRing = { x: L.colX(3 + tip.to.i), y: L.pad };
+    else {
+      const last = placed.filter((p) => p.loc.type === 'tableau' && p.loc.col === tip.to.col).pop();
+      tipRing = last ? { x: last.x, y: last.y } : { x: L.colX(tip.to.col), y: L.tableauY };
+    }
+  } else if (tip?.kind === 'draw') tipRing = { x: L.colX(0), y: L.pad };
+
+  const cardStyle = { width: L.cw, height: L.ch };
+  const slot = (x, y, cls, loc, label, text) => (
+    <div key={cls + x + y} className={`slot ${cls}`} style={{ transform: `translate(${x}px, ${y}px)`, ...cardStyle }}
+      onClick={() => onTap(loc)} role="button" aria-label={label}>{text}</div>
+  );
+
+  return (
+    <div className="app">
+      <header className="bar">
+        <div className="stats" aria-live="polite">
+          <span><small>Score</small><b>{game.score}</b></span>
+          <span><small>Zetten</small><b>{game.moves}</b></span>
+        </div>
+        <div className="buttons">
+          <button className="btn" onClick={onUndo} disabled={!history.length || auto}>↩ Ongedaan maken</button>
+          <button className="btn" onClick={onTip} disabled={auto || won}>💡 Tip</button>
+          <button className="btn quiet" onClick={askNew}>Nieuw spel</button>
+        </div>
+      </header>
+
+      <div className="message" role="status">
+        <span>{msg || START_MSG}</span>
+        {canAutoFinish(game) && !auto && !won && (
+          <button className="btn go" onClick={startAuto}>Maak het af</button>
+        )}
+      </div>
+
+      <main className="board" ref={boardRef} style={{ '--cw': `${L.cw}px` }}>
+        {slot(L.colX(0), L.pad, 'stock', { type: 'stock' }, 'Stapel', game.stock.length === 0 && game.waste.length > 0 ? '↻' : '')}
+        {[0, 1, 2, 3].map((i) => slot(L.colX(3 + i), L.pad, 'found', { type: 'foundation', i }, 'Plek voor een aas', 'A'))}
+        {[0, 1, 2, 3, 4, 5, 6].map((col) => slot(L.colX(col), L.tableauY, 'empty', { type: 'tableau', col }, 'Lege plek', 'H'))}
+
+        {placed.map(({ card, loc, x, y, z }) => {
+          const base = loc.type === 'foundation' || loc.type === 'waste' ? 100 : loc.type === 'tableau' ? 10 : 0;
+          const k = cardKey(card);
+          const cls = ['card', card.up ? 'up' : 'down', card.s === 1 || card.s === 2 ? 'red' : 'black',
+            selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom'].filter(Boolean).join(' ');
+          return (
+            <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, transform: `translate(${x}px, ${y}px)`, zIndex: base + z }}
+              onClick={() => onTap(loc)} role="button" aria-label={card.up ? name(card) : 'Gesloten kaart'}>
+              {card.up && (
+                <>
+                  <span className="corner">{RANKS[card.r]}<i>{SUITS[card.s]}</i></span>
+                  <span className="pip">{SUITS[card.s]}</span>
+                </>
+              )}
+            </div>
+          );
+        })}
+
+        {tipRing && <div className="ring" style={{ ...cardStyle, transform: `translate(${tipRing.x}px, ${tipRing.y}px)` }} />}
+      </main>
+
+      {confirmNew && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <div className="dialog">
+            <h2>Nieuw spel beginnen?</h2>
+            <p>Het spel dat je nu speelt gaat dan verloren.</p>
+            <div className="buttons">
+              <button className="btn" onClick={() => setConfirmNew(false)}>Nee, doorspelen</button>
+              <button className="btn go" onClick={newGame}>Ja, nieuw spel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {won && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <Confetti />
+          <div className="dialog">
+            <h2>Gewonnen! 🎉</h2>
+            <p>Mooi gedaan! Je score is <b>{game.score}</b>.</p>
+            <div className="buttons">
+              <button className="btn go" onClick={newGame}>Nog een spelletje</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

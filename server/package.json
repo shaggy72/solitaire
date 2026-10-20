@@ -1,0 +1,15 @@
+{
+  "name": "solitaire-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

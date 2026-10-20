@@ -1,0 +1,77 @@
+# Automatische tests: bij elke push en pull request, en elke nacht (04:00 Belgische zomertijd).
+# 's Nachts ook een controle of de echte site bereikbaar is. Mislukt er iets, dan mailt GitHub je
+# en toont system.luyens.be een waarschuwing (voeg deze repo toe aan GITHUB_REPOS in de .env van system).
+# Lokaal: `cd server && npm test` en `cd e2e && npx playwright test`.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+# Een nieuwere push annuleert de lopende run van dezelfde branch.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://solitaire.luyens.be # <- zet hier het adres van de app
+
+jobs:
+  server:
+    name: Servertests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # zelfde als de VPS
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
+
+  e2e:
+    name: Browsertests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+            e2e/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm ci && npm run build
+        working-directory: client
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
+        working-directory: e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-rapport
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
+  production:
+    name: Site bereikbaar
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS --max-time 20 "$PROD_URL/api/health" | grep -q '"ok":true'
+      - run: curl -fsS --max-time 20 "$PROD_URL/" -o /dev/null
