@@ -118,6 +118,8 @@ body {
   line-height: 1;
 }
 
+.card.up { touch-action: none; }
+.card.drag { transition: none; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5); cursor: grabbing; }
 .card.sel {
   outline: 4px solid #ffd54f;
   outline-offset: -2px;

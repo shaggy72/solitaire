@@ -3,7 +3,7 @@
 Eenvoudige Klondike-solitaire (één kaart trekken) voor een iPad, op **solitaire.luyens.be**. Geen inlog: wie de link heeft, kan spelen. Het lopende spel wordt in het toestel zelf bewaard (localStorage), er staat niets op de server.
 
 ## Spelen
-- Tik op een kaart en daarna op de plek waar hij naartoe moet. Een stapel kaarten verhuist mee als je er een midden uit kiest.
+- Tik op een kaart en daarna op de plek waar hij naartoe moet, of sleep de kaart er met je vinger naartoe (loslaten op een verkeerde plek: hij springt terug). Een stapel kaarten verhuist mee als je er een midden uit kiest.
 - Dubbeltik op een kaart: hij gaat naar boven (de vier stapels rechtsboven), als hij daar past.
 - Tik op de stapel linksboven om een kaart te trekken; is de stapel leeg, tik erop om opnieuw te beginnen.
 - **Ongedaan maken** (onbeperkt), **Tip** (zegt in woorden wat kan en kleurt de kaart blauw), **Nieuw spel** (vraagt eerst bevestiging).
@@ -13,7 +13,7 @@ Eenvoudige Klondike-solitaire (één kaart trekken) voor een iPad, op **solitair
 
 ## Opbouw
 - `client/` React + Vite (PWA: installeerbaar op het beginscherm, vernieuwt zichzelf bij een nieuwe versie).
-  - `src/lib/game.js` spelregels als zuivere functies (getest in `game.test.js`), `layout.js` plaats van elke kaart, `storage.js` bewaren.
+  - `src/lib/game.js` spelregels als zuivere functies (getest in `game.test.js`), `layout.js` plaats van elke kaart en waar een losgelaten kaart landt (`dropTarget`), `storage.js` bewaren.
 - `server/` Express 5: serveert `client/dist` en `GET /api/health`. Geen database, dus geen back-up nodig.
 - `e2e/` Playwright-browsertests; `e2e/make-icons.mjs` maakt de app-iconen opnieuw (`cd e2e && node make-icons.mjs`).
 - Onderdelen uit de catalogus `luyens-skills`: `app-pwa`, `app-tests`, `app-deploy` (alleen nginx + `deploy.sh`; zonder de back-up). Zie `.luyens/components.json`.

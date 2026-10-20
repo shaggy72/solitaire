@@ -1,5 +1,6 @@
 // Rekent uit waar elke kaart staat, zodat het bord altijd past op het scherm (iPad liggend of staand).
 // Kolommen: 0 stapel, 1 aflegstapel, 2 leeg, 3-6 funderingen; daaronder de 7 tableau-kolommen.
+import { grab, canMove, foundationFor } from './game.js';
 export const cardKey = (c) => `${c.s}-${c.r}`;
 
 const DOWN_FAN = 0.12; // gesloten kaarten liggen dicht op elkaar (deel van de kaarthoogte)
@@ -39,4 +40,17 @@ export function place(state, L) {
     });
   });
   return out;
+}
+
+// Waar komt een losgelaten kaart terecht? (cx, cy) = midden van de gesleepte kaart. Geeft de bestemming of null als het niet past.
+// Boven de tafel: een fundering (de plek eronder, of de juiste voor deze kaart); eronder: de dichtstbijzijnde kolom.
+export function dropTarget(state, L, from, cx, cy) {
+  const col = Math.min(6, Math.max(0, Math.round((cx - L.pad - L.cw / 2) / (L.cw + L.gap))));
+  const cards = grab(state, from);
+  if (!cards) return null;
+  if (cy < L.pad + L.ch + L.rowGap / 2) {
+    const i = col >= 3 ? col - 3 : foundationFor(state, cards[0]);
+    return i >= 0 && canMove(state, from, { type: 'foundation', i }) ? { type: 'foundation', i } : null;
+  }
+  return canMove(state, from, { type: 'tableau', col }) ? { type: 'tableau', col } : null;
 }

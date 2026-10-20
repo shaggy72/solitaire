@@ -2,15 +2,16 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, foundationFor, push, SUITS, RANKS,
 } from './lib/game.js';
-import { measure, place, cardKey } from './lib/layout.js';
+import { measure, place, cardKey, dropTarget } from './lib/layout.js';
 import { loadSaved, save } from './lib/storage.js';
 import Confetti from './Confetti.jsx';
 
 const SUIT_NAMES = ['schoppen', 'harten', 'ruiten', 'klaveren'];
 const RANK_NAMES = ['', 'aas', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'boer', 'dame', 'heer'];
 const name = (c) => `${SUIT_NAMES[c.s]} ${RANK_NAMES[c.r]}`;
-const START_MSG = 'Tik op een kaart en daarna op de plek waar hij naartoe moet.';
+const START_MSG = 'Tik op een kaart en daarna op de plek waar hij naartoe moet, of sleep de kaart.';
 const DOUBLE_TAP_MS = 380;
+const DRAG_START_PX = 8;
 
 const sameLoc = (a, b) => a && b && a.type === b.type && a.col === b.col && a.i === b.i && a.index === b.index;
 const destOf = (loc) => (loc.type === 'tableau' ? { type: 'tableau', col: loc.col } : loc.type === 'foundation' ? { type: 'foundation', i: loc.i } : null);
@@ -39,6 +40,9 @@ export default function App() {
   const [size, setSize] = useState({ W: 0, H: 0 });
   const boardRef = useRef(null);
   const lastTap = useRef({ loc: null, t: 0 });
+  const [drag, setDrag] = useState(null); // { loc, dx, dy } terwijl een kaart gesleept wordt
+  const dragRef = useRef(null);
+  const suppressClick = useRef(false);
   const won = isWon(game);
 
   useEffect(() => { save(game, history); }, [game, history]);
@@ -129,7 +133,42 @@ export default function App() {
     }
   };
 
+  // Slepen: een kaart (of stapel) oppakken en loslaten op een kolom of een fundering. Een korte tik blijft een tik.
+  const onPointerDown = (e, loc) => {
+    if (auto || won || loc.type === 'stock' || e.button > 0 || !grab(game, loc)) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    dragRef.current = { loc, id: e.pointerId, x0: e.clientX, y0: e.clientY, active: false };
+  };
+  const onPointerMove = (e) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.id) return;
+    const dx = e.clientX - d.x0;
+    const dy = e.clientY - d.y0;
+    if (!d.active) {
+      if (Math.hypot(dx, dy) < DRAG_START_PX) return;
+      d.active = true;
+      setSel(null); setTip(null); setMsg('');
+    }
+    setDrag({ loc: d.loc, dx, dy });
+  };
+  const onPointerEnd = (e, cancelled) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.id) return;
+    dragRef.current = null;
+    if (!d.active) return;
+    suppressClick.current = true;
+    setTimeout(() => { suppressClick.current = false; }, 60);
+    setDrag(null);
+    if (cancelled) return;
+    const first = placed.find((p) => sameLoc(p.loc, d.loc));
+    if (!first) return;
+    const to = dropTarget(game, L, d.loc, first.x + (e.clientX - d.x0) + L.cw / 2, first.y + (e.clientY - d.y0) + L.ch / 2);
+    if (to) commit(move(game, d.loc, to));
+    else if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > L.cw * 0.5) setMsg('Daar past die kaart niet. Hij gaat terug naar zijn plek.');
+  };
+
   const selKeys = new Set(sel ? (grab(game, sel) ?? []).map(cardKey) : []);
+  const dragKeys = new Set(drag ? (grab(game, drag.loc) ?? []).map(cardKey) : []);
   const tipKeys = new Set(tip?.kind === 'move' ? tip.cards.map(cardKey) : []);
   let tipRing = null;
   if (tip?.kind === 'move') {
@@ -175,11 +214,14 @@ export default function App() {
         {placed.map(({ card, loc, x, y, z }) => {
           const base = loc.type === 'foundation' || loc.type === 'waste' ? 100 : loc.type === 'tableau' ? 10 : 0;
           const k = cardKey(card);
+          const dragging = dragKeys.has(cardKey(card));
           const cls = ['card', card.up ? 'up' : 'down', card.s === 1 || card.s === 2 ? 'red' : 'black',
-            selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom'].filter(Boolean).join(' ');
+            selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom', dragKeys.has(k) && 'drag'].filter(Boolean).join(' ');
           return (
-            <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, transform: `translate(${x}px, ${y}px)`, zIndex: base + z }}
-              onClick={() => onTap(loc)} role="button" aria-label={card.up ? name(card) : 'Gesloten kaart'}>
+            <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, transform: `translate(${x + (dragging ? drag.dx : 0)}px, ${y + (dragging ? drag.dy : 0)}px)`, zIndex: dragging ? 500 + z : base + z }}
+              onPointerDown={(e) => onPointerDown(e, loc)} onPointerMove={onPointerMove}
+              onPointerUp={(e) => onPointerEnd(e, false)} onPointerCancel={(e) => onPointerEnd(e, true)}
+              onClick={() => { if (!suppressClick.current) onTap(loc); }} role="button" aria-label={card.up ? name(card) : 'Gesloten kaart'}>
               {card.up && (
                 <>
                   <span className="corner">{RANKS[card.r]}<i>{SUITS[card.s]}</i></span>

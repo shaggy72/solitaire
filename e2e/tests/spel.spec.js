@@ -62,3 +62,50 @@ for (const [w, h] of [[1180, 820], [820, 1180], [1366, 1024]]) {
     }
   });
 }
+
+// Vast spel zonder schudden: kolom 1 = ♠A, kolom 2 = ♠2 (gesloten) ♠3 enz. Zo weten we precies wat waar past.
+const vastSpel = () => {
+  const deck = [];
+  for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ s, r, up: false });
+  let k = 0;
+  const tableau = [];
+  for (let col = 0; col < 7; col++) {
+    const pile = [];
+    for (let i = 0; i <= col; i++) pile.push({ ...deck[k++], up: i === col });
+    tableau.push(pile);
+  }
+  return { stock: deck.slice(k), waste: [], foundations: [[], [], [], []], tableau, score: 0, moves: 0 };
+};
+
+async function sleep(page, kaart, naarX, naarY) {
+  const b = await kaart.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 20, b.y + 40, { steps: 3 });
+  await page.mouse.move(naarX, naarY, { steps: 8 });
+  await page.mouse.up();
+}
+
+test('een aas naar de fundering slepen werkt; naar een verkeerde plek springt hij terug', async ({ page }) => {
+  await page.addInitScript((game) => localStorage.setItem('solitaire-v1', JSON.stringify({ game, history: [] })), vastSpel());
+  await page.goto(srv.base);
+  const aas = page.locator('.card[data-pile="tableau"].up').first(); // ♠A, enige kaart in kolom 1
+  const kol4 = await page.locator('.slot.empty').nth(3).boundingBox();
+  await sleep(page, aas, kol4.x + kol4.width / 2, kol4.y + 60); // ♠A op een gesloten kolom: past niet
+  await expect(page.locator('.card[data-pile="foundation"]')).toHaveCount(0);
+  await expect(page.locator('.message')).toContainText('Daar past die kaart niet');
+
+  await page.waitForTimeout(400); // de kaart springt terug (animatie van 0,2 s)
+  const fund = await page.locator('.slot.found').first().boundingBox();
+  await sleep(page, aas, fund.x + fund.width / 2, fund.y + fund.height / 2);
+  await expect(page.locator('.card[data-pile="foundation"]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /Ongedaan maken/ })).toBeEnabled();
+  await expect(page.locator('.stats')).toContainText('10'); // +10 punten
+});
+
+test('een korte tik na slepen blijft een gewone tik (kaart kiezen)', async ({ page }) => {
+  await page.addInitScript((game) => localStorage.setItem('solitaire-v1', JSON.stringify({ game, history: [] })), vastSpel());
+  await page.goto(srv.base);
+  await page.locator('.card[data-pile="tableau"].up').first().click();
+  await expect(page.locator('.card.sel')).toHaveCount(1);
+});
