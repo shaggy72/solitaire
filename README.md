@@ -10,10 +10,12 @@ Eenvoudige Klondike-solitaire (één kaart trekken) voor een iPad, op **solitair
 - Score: +10 naar boven, +5 omdraaien of aflegkaart op de tafel, −10 een kaart terugnemen van boven. Geen tijdsdruk, geen strafpunten voor opnieuw door de stapel gaan.
 - Is alles open en de stapel leeg, dan verschijnt **Maak het af**. Bij winst: confetti.
 - Kaartnamen zijn Belgisch: A (aas), B (boer), D (dame), H (heer).
+- **Kaarten** (knop bovenaan): kies uit 6 ontwerpen: Standaard, Tuin, Modern, Goden, Antiek en Klassiek. De keuze wordt in het toestel bewaard. Het zijn eigen tekeningen (SVG, geen afbeeldingen) in de stijl van bekende kaartspellen, geen kopieën van bestaande kunstwerken.
+- **Indeling:** staand staan stapel en funderingen bovenaan; liggend staan de stapel links en de funderingen rechts, zodat de kaarten groter zijn.
 
 ## Opbouw
 - `client/` React + Vite (PWA: installeerbaar op het beginscherm, vernieuwt zichzelf bij een nieuwe versie).
-  - `src/lib/game.js` spelregels als zuivere functies (getest in `game.test.js`), `layout.js` plaats van elke kaart en waar een losgelaten kaart landt (`dropTarget`), `storage.js` bewaren.
+  - `src/lib/game.js` spelregels als zuivere functies (getest in `game.test.js`), `layout.js` plaats van elke kaart (staand en liggend) en waar een losgelaten kaart landt (`dropTarget`), `themes.js` de kaartontwerpen en `pips.js` de plaats van de tekens, `CardArt.jsx` de tekeningen voor heer, dame en boer, `storage.js` bewaren.
 - `server/` Express 5: serveert `client/dist` en `GET /api/health`. Geen database, dus geen back-up nodig.
 - `e2e/` Playwright-browsertests; `e2e/make-icons.mjs` maakt de app-iconen opnieuw (`cd e2e && node make-icons.mjs`).
 - Onderdelen uit de catalogus `luyens-skills`: `app-pwa`, `app-tests`, `app-deploy` (alleen nginx + `deploy.sh`; zonder de back-up). Zie `.luyens/components.json`.

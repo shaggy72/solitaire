@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, foundationFor, push, SUITS, RANKS,
+  deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, foundationFor, push, isRed,
 } from './lib/game.js';
 import { measure, place, cardKey, dropTarget } from './lib/layout.js';
-import { loadSaved, save } from './lib/storage.js';
+import { loadSaved, save, loadTheme, saveTheme } from './lib/storage.js';
+import { THEMES, themeById } from './lib/themes.js';
+import CardFace from './CardArt.jsx';
 import Confetti from './Confetti.jsx';
 
 const SUIT_NAMES = ['schoppen', 'harten', 'ruiten', 'klaveren'];
@@ -37,6 +39,9 @@ export default function App() {
   const [msg, setMsg] = useState('');
   const [confirmNew, setConfirmNew] = useState(false);
   const [auto, setAuto] = useState(false);
+  const [themeId, setThemeId] = useState(() => themeById(loadTheme()).id);
+  const [pickTheme, setPickTheme] = useState(false);
+  const theme = themeById(themeId);
   const [size, setSize] = useState({ W: 0, H: 0 });
   const boardRef = useRef(null);
   const lastTap = useRef({ loc: null, t: 0 });
@@ -46,6 +51,7 @@ export default function App() {
   const won = isWon(game);
 
   useEffect(() => { save(game, history); }, [game, history]);
+  const chooseTheme = (id) => { setThemeId(id); saveTheme(id); setPickTheme(false); };
 
   useLayoutEffect(() => {
     const el = boardRef.current;
@@ -56,6 +62,7 @@ export default function App() {
     return () => ro.disconnect();
   }, []);
 
+  const measured = size.W > 0 && size.H > 0; // pas tekenen na de eerste meting, anders vliegen de kaarten bij het openen naar hun plek
   const L = useMemo(() => measure(size.W || 800, size.H || 600), [size]);
   const placed = useMemo(() => place(game, L), [game, L]);
 
@@ -172,12 +179,12 @@ export default function App() {
   const tipKeys = new Set(tip?.kind === 'move' ? tip.cards.map(cardKey) : []);
   let tipRing = null;
   if (tip?.kind === 'move') {
-    if (tip.to.type === 'foundation') tipRing = { x: L.colX(3 + tip.to.i), y: L.pad };
+    if (tip.to.type === 'foundation') tipRing = L.foundXY(tip.to.i);
     else {
       const last = placed.filter((p) => p.loc.type === 'tableau' && p.loc.col === tip.to.col).pop();
       tipRing = last ? { x: last.x, y: last.y } : { x: L.colX(tip.to.col), y: L.tableauY };
     }
-  } else if (tip?.kind === 'draw') tipRing = { x: L.colX(0), y: L.pad };
+  } else if (tip?.kind === 'draw') tipRing = L.stockXY;
 
   const cardStyle = { width: L.cw, height: L.ch };
   const slot = (x, y, cls, loc, label, text) => (
@@ -186,7 +193,7 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className="app" style={theme.vars} data-theme={theme.id}>
       <header className="bar">
         <div className="stats" aria-live="polite">
           <span><small>Score</small><b>{game.score}</b></span>
@@ -195,6 +202,7 @@ export default function App() {
         <div className="buttons">
           <button className="btn" onClick={onUndo} disabled={!history.length || auto}>↩ Ongedaan maken</button>
           <button className="btn" onClick={onTip} disabled={auto || won}>💡 Tip</button>
+          <button className="btn" onClick={() => setPickTheme(true)}>🎴 Kaarten</button>
           <button className="btn quiet" onClick={askNew}>Nieuw spel</button>
         </div>
       </header>
@@ -207,33 +215,52 @@ export default function App() {
       </div>
 
       <main className="board" ref={boardRef} style={{ '--cw': `${L.cw}px` }}>
-        {slot(L.colX(0), L.pad, 'stock', { type: 'stock' }, 'Stapel', game.stock.length === 0 && game.waste.length > 0 ? '↻' : '')}
-        {[0, 1, 2, 3].map((i) => slot(L.colX(3 + i), L.pad, 'found', { type: 'foundation', i }, 'Plek voor een aas', 'A'))}
+        {measured && <>
+        {slot(L.stockXY.x, L.stockXY.y, 'stock', { type: 'stock' }, 'Stapel', game.stock.length === 0 && game.waste.length > 0 ? '↻' : '')}
+        {[0, 1, 2, 3].map((i) => slot(L.foundXY(i).x, L.foundXY(i).y, 'found', { type: 'foundation', i }, 'Plek voor een aas', 'A'))}
         {[0, 1, 2, 3, 4, 5, 6].map((col) => slot(L.colX(col), L.tableauY, 'empty', { type: 'tableau', col }, 'Lege plek', 'H'))}
 
         {placed.map(({ card, loc, x, y, z }) => {
           const base = loc.type === 'foundation' || loc.type === 'waste' ? 100 : loc.type === 'tableau' ? 10 : 0;
           const k = cardKey(card);
           const dragging = dragKeys.has(cardKey(card));
-          const cls = ['card', card.up ? 'up' : 'down', card.s === 1 || card.s === 2 ? 'red' : 'black',
+          const cls = ['card', card.up ? 'up' : 'down', isRed(card) ? 'red' : 'black',
             selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom', dragKeys.has(k) && 'drag'].filter(Boolean).join(' ');
           return (
             <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, transform: `translate(${x + (dragging ? drag.dx : 0)}px, ${y + (dragging ? drag.dy : 0)}px)`, zIndex: dragging ? 500 + z : base + z }}
               onPointerDown={(e) => onPointerDown(e, loc)} onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerEnd(e, false)} onPointerCancel={(e) => onPointerEnd(e, true)}
               onClick={() => { if (!suppressClick.current) onTap(loc); }} role="button" aria-label={card.up ? name(card) : 'Gesloten kaart'}>
-              {card.up && (
-                <>
-                  <span className="corner">{RANKS[card.r]}<i>{SUITS[card.s]}</i></span>
-                  <span className="pip">{SUITS[card.s]}</span>
-                </>
-              )}
+              {card.up && <CardFace card={card} theme={theme} />}
             </div>
           );
         })}
 
         {tipRing && <div className="ring" style={{ ...cardStyle, transform: `translate(${tipRing.x}px, ${tipRing.y}px)` }} />}
+        </>}
       </main>
+
+      {pickTheme && (
+        <div className="overlay" role="dialog" aria-modal="true" aria-label="Kies je kaarten">
+          <div className="dialog wide">
+            <h2>Kies je kaarten</h2>
+            <div className="themes">
+              {THEMES.map((t) => (
+                <button key={t.id} className={'themeopt' + (t.id === themeId ? ' current' : '')} style={t.vars} onClick={() => chooseTheme(t.id)} aria-pressed={t.id === themeId}>
+                  <span className="preview" style={{ '--cw': '46px' }}>
+                    <span className="card up black"><CardFace card={{ s: 0, r: 1, up: true }} theme={t} /></span>
+                    <span className="card up red"><CardFace card={{ s: 1, r: 13, up: true }} theme={t} /></span>
+                    <span className="card up black"><CardFace card={{ s: 3, r: 12, up: true }} theme={t} /></span>
+                    <span className="card down" />
+                  </span>
+                  <b>{t.name}</b>
+                </button>
+              ))}
+            </div>
+            <div className="buttons"><button className="btn" onClick={() => setPickTheme(false)}>Sluiten</button></div>
+          </div>
+        </div>
+      )}
 
       {confirmNew && (
         <div className="overlay" role="dialog" aria-modal="true">

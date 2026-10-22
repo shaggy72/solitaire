@@ -22,3 +22,11 @@ export function loadSaved() {
 export function save(game, history) {
   try { localStorage.setItem(KEY, JSON.stringify({ game, history })); } catch { /* opslag niet beschikbaar */ }
 }
+
+const THEME_KEY = 'solitaire-theme';
+export function loadTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch { return null; }
+}
+export function saveTheme(id) {
+  try { localStorage.setItem(THEME_KEY, id); } catch { /* opslag niet beschikbaar */ }
+}

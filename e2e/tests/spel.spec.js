@@ -109,3 +109,26 @@ test('een korte tik na slepen blijft een gewone tik (kaart kiezen)', async ({ pa
   await page.locator('.card[data-pile="tableau"].up').first().click();
   await expect(page.locator('.card.sel')).toHaveCount(1);
 });
+
+test('een kaartontwerp kiezen blijft bewaard', async ({ page }) => {
+  await page.goto(srv.base);
+  await expect(page.locator('.app')).toHaveAttribute('data-theme', 'standaard');
+  await page.getByRole('button', { name: /Kaarten/ }).click();
+  await expect(page.getByRole('dialog')).toContainText('Kies je kaarten');
+  await expect(page.locator('.themeopt')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Tuin' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.app')).toHaveAttribute('data-theme', 'tuin');
+  await expect(cards(page)).toHaveCount(52);
+  await page.reload();
+  await expect(page.locator('.app')).toHaveAttribute('data-theme', 'tuin');
+});
+
+test('liggend iPad: de kaarten zijn groter dan 110 px en de 7 kolommen staan naast elkaar', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.goto(srv.base);
+  const widths = await cards(page).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+  expect(Math.min(...widths)).toBeGreaterThanOrEqual(110);
+  const xs = await page.locator('.card[data-pile="tableau"].up').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)));
+  expect(new Set(xs).size).toBe(7);
+});

@@ -88,16 +88,17 @@ body {
 .slot.stock { font-size: calc(var(--cw) * 0.6); }
 
 .card {
-  background: var(--paper);
-  border: 1px solid #b9b2a0;
+  background: var(--paper-texture, none), var(--paper);
+  border: 1px solid var(--edge, #b9b2a0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
   transition: transform 0.2s ease, box-shadow 0.15s;
   color: var(--ink);
 }
 .card.red { color: var(--red); }
+.card.black { color: var(--ink); }
 .card.down {
-  border: 3px solid var(--paper);
-  background: repeating-linear-gradient(45deg, #2b5aa8 0 7px, #254b8c 7px 14px);
+  border: 3px solid var(--back-edge, var(--paper));
+  background: var(--back);
 }
 .corner {
   position: absolute;
@@ -107,6 +108,7 @@ body {
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
+  font-family: var(--corner-font, inherit);
 }
 .corner i { font-style: normal; margin-left: 0.08em; }
 .pip {
@@ -119,6 +121,10 @@ body {
 }
 
 .card.up { touch-action: none; }
+.art { position: absolute; left: 5%; top: 24%; width: 90%; height: 71%; }
+.pips { position: absolute; left: 10%; right: 10%; top: 27%; bottom: 7%; }
+.pips b { position: absolute; font-size: calc(var(--cw) * 0.27); line-height: 1; font-weight: 400; }
+.pip.ace { font-size: calc(var(--cw) * 0.68); }
 .card.drag { transition: none; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5); cursor: grabbing; }
 .card.sel {
   outline: 4px solid #ffd54f;
@@ -163,3 +169,23 @@ body {
   .card { transition: none; }
   .ring, .card.tipfrom { animation: none; }
 }
+
+/* Kaartontwerp kiezen */
+.dialog.wide { max-width: 760px; width: 100%; }
+.themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.themeopt {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 3px solid transparent;
+  border-radius: 16px;
+  background: #e8e2d0;
+  color: #1b1b1b;
+}
+.themeopt b { font-size: 22px; }
+.themeopt.current { border-color: #2a8a5a; background: #d6efdf; }
+.preview { display: flex; gap: 6px; }
+.preview .card, .preview .card.down { position: relative; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4); transition: none; }
