@@ -66,6 +66,37 @@ export default function App() {
   const L = useMemo(() => measure(size.W || 800, size.H || 600), [size]);
   const placed = useMemo(() => place(game, L), [game, L]);
 
+  // Animaties: een kaart die verhuist komt even bovenop te liggen en krijgt een landingseffect;
+  // een kaart die omdraait, draait zichtbaar om. De klassen verdwijnen weer, zodat dezelfde
+  // beweging een volgende keer opnieuw kan spelen.
+  const prevCards = useRef(new Map()); // kaartsleutel -> { loc, up } van de vorige tekening
+  const [fx, setFx] = useState({ fly: new Set(), flip: new Set() });
+  const fxTimer = useRef(0);
+  useEffect(() => {
+    const prev = prevCards.current;
+    const fly = [];
+    const flip = [];
+    const quiet = game.moves === 0; // bij een nieuw spel geen extra effect bovenop het verschuiven
+    for (const p of placed) {
+      const k = cardKey(p.card);
+      const before = prev.get(k);
+      if (before && !quiet) {
+        if (!sameLoc(before.loc, p.loc)) {
+          if (p.loc.type === 'tableau' || p.loc.type === 'foundation') fly.push(k);
+        } else if (!before.up && p.card.up) {
+          flip.push(k);
+        }
+      }
+      prev.set(k, { loc: p.loc, up: p.card.up });
+    }
+    if (!fly.length && !flip.length) return undefined;
+    setFx({ fly: new Set(fly), flip: new Set(flip) });
+    clearTimeout(fxTimer.current);
+    fxTimer.current = setTimeout(() => setFx({ fly: new Set(), flip: new Set() }), 540);
+    return undefined;
+  }, [placed, game.moves]);
+  useEffect(() => () => clearTimeout(fxTimer.current), []);
+
   const commit = useCallback((next, message = '') => {
     if (next === game) return;
     setHistory((h) => push(h, game));
@@ -224,10 +255,12 @@ export default function App() {
           const base = loc.type === 'foundation' || loc.type === 'waste' ? 100 : loc.type === 'tableau' ? 10 : 0;
           const k = cardKey(card);
           const dragging = dragKeys.has(cardKey(card));
+          const flying = fx.fly.has(k);
           const cls = ['card', card.up ? 'up' : 'down', isRed(card) ? 'red' : 'black',
-            selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom', dragKeys.has(k) && 'drag'].filter(Boolean).join(' ');
+            selKeys.has(k) && 'sel', tipKeys.has(k) && 'tipfrom', dragKeys.has(k) && 'drag',
+            flying && 'landed', fx.flip.has(k) && 'flip'].filter(Boolean).join(' ');
           return (
-            <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, transform: `translate(${x + (dragging ? drag.dx : 0)}px, ${y + (dragging ? drag.dy : 0)}px)`, zIndex: dragging ? 500 + z : base + z }}
+            <div key={k} data-pile={loc.type} className={cls} style={{ ...cardStyle, translate: `${x + (dragging ? drag.dx : 0)}px ${y + (dragging ? drag.dy : 0)}px`, zIndex: dragging ? 500 + z : flying ? 300 + z : base + z }}
               onPointerDown={(e) => onPointerDown(e, loc)} onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerEnd(e, false)} onPointerCancel={(e) => onPointerEnd(e, true)}
               onClick={() => { if (!suppressClick.current) onTap(loc); }} role="button" aria-label={card.up ? name(card) : 'Gesloten kaart'}>

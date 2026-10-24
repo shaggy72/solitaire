@@ -91,8 +91,23 @@ body {
   background: var(--paper-texture, none), var(--paper);
   border: 1px solid var(--edge, #b9b2a0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.15s;
+  transition: translate 0.3s cubic-bezier(0.2, 0.7, 0.25, 1), box-shadow 0.18s;
   color: var(--ink);
+}
+/* Even bovenop tijdens het vliegen, met een klein opzetje bij het landen. */
+.card.landed {
+  animation: card-land 0.34s 0.08s cubic-bezier(0.2, 0.8, 0.3, 1.1);
+}
+@keyframes card-land {
+  0% { scale: 1; }
+  55% { scale: 1.045; box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 213, 79, 0.55); }
+  100% { scale: 1; }
+}
+/* Een gesloten kaart die opengelegd wordt, draait zichtbaar om. */
+.card.flip { animation: card-flip 0.42s ease-out; }
+@keyframes card-flip {
+  from { transform: perspective(900px) rotateY(88deg); filter: brightness(0.8); }
+  to { transform: perspective(900px) rotateY(0deg); filter: none; }
 }
 .card.red { color: var(--red); }
 .card.black { color: var(--ink); }
@@ -167,6 +182,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .card { transition: none; }
+  .card.landed, .card.flip { animation: none; }
   .ring, .card.tipfrom { animation: none; }
 }
 

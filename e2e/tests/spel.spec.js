@@ -103,6 +103,28 @@ test('een aas naar de fundering slepen werkt; naar een verkeerde plek springt hi
   await expect(page.locator('.stats')).toContainText('10'); // +10 punten
 });
 
+// Een spel waarin één zet meteen een gesloten kaart openlegt (♠3 op ♥4).
+const animatieSpel = () => {
+  const deck = [];
+  for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ s, r, up: false });
+  const pak = (s, r) => {
+    const i = deck.findIndex((c) => c.s === s && c.r === r);
+    return { ...deck.splice(i, 1)[0], up: true };
+  };
+  const tableau = [[{ ...pak(0, 2), up: false }, pak(0, 3)], [pak(1, 4)], [], [], [], [], []];
+  return { stock: deck, waste: [], foundations: [[], [], [], []], tableau, score: 0, moves: 1 };
+};
+
+test('een verhuisde kaart landt met een effect, een opengelegde kaart draait om', async ({ page }) => {
+  await page.addInitScript((game) => localStorage.setItem('solitaire-v1', JSON.stringify({ game, history: [] })), animatieSpel());
+  await page.goto(srv.base);
+  await page.getByRole('button', { name: 'schoppen 3' }).click();
+  await page.getByRole('button', { name: 'harten 4' }).click();
+  await expect(page.locator('.card.landed')).toHaveCount(1);
+  await expect(page.locator('.card.flip')).toHaveCount(1);
+  await expect(page.locator('.card.landed')).toHaveCount(0, { timeout: 3000 }); // daarna is de kaart weer gewoon
+});
+
 test('een korte tik na slepen blijft een gewone tik (kaart kiezen)', async ({ page }) => {
   await page.addInitScript((game) => localStorage.setItem('solitaire-v1', JSON.stringify({ game, history: [] })), vastSpel());
   await page.goto(srv.base);
