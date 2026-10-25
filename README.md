@@ -6,7 +6,7 @@ Eenvoudige Klondike-solitaire (1 of 3 kaarten trekken) voor een iPad, op **solit
 - Tik op een kaart en daarna op de plek waar hij naartoe moet, of sleep de kaart er met je vinger naartoe (loslaten op een verkeerde plek: hij springt terug). Een stapel kaarten verhuist mee als je er een midden uit kiest.
 - Dubbeltik op een kaart: hij gaat naar boven (de vier stapels rechtsboven), als hij daar past.
 - Tik op de stapel linksboven om te trekken; is de stapel leeg, tik erop om opnieuw te beginnen (zo vaak je wil).
-- **1 of 3 kaarten:** met de knop **3 per keer** bovenaan trek je drie kaarten tegelijk, zoals in de klassieke variant. Alleen de bovenste van de drie is dan speelbaar; speel je die weg, dan komt de volgende vrij. De keuze wordt in het toestel bewaard. Zonder die knop trek je één kaart (makkelijker).
+- **1 of 3 kaarten:** met de knop **3 per keer** bovenaan trek je drie kaarten tegelijk, zoals in de klassieke variant. Je ziet enkel de bovenste van de drie, en alleen die is speelbaar; speel je die weg, dan komt de volgende vrij. De keuze wordt in het toestel bewaard. Zonder die knop trek je één kaart (makkelijker).
 - **Ongedaan maken** (onbeperkt), **Tip** (zegt in woorden wat kan en kleurt de kaart blauw), **Nieuw spel** (vraagt eerst bevestiging).
 - Score: +10 naar boven, +5 omdraaien of aflegkaart op de tafel, −10 een kaart terugnemen van boven. Geen tijdsdruk, geen strafpunten voor opnieuw door de stapel gaan.
 - Is alles open en de stapel leeg, dan verschijnt **Maak het af**. Bij winst: confetti.

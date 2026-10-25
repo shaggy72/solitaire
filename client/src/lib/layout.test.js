@@ -59,30 +59,21 @@ for (const [naam, [W, H]] of Object.entries(SIZES)) {
   });
 }
 
-test('drie kaarten per keer: de bovenste drie van de aflegstapel waaieren uit, de rest blijft op zijn plek', () => {
+test('de aflegstapel is één stapel: je ziet enkel de bovenste kaart, ook bij 3 per keer', () => {
   const g = empty();
-  g.waste = [c(0, 2), c(0, 3), c(0, 4), c(0, 5), c(0, 6)]; // de 6 ligt bovenaan
-  const staand = measure(...SIZES.staand);
-  const p = place(g, staand, 3).filter((x) => x.loc.type === 'waste');
-  assert.deepEqual(p.slice(0, 2).map((x) => x.x), [staand.wasteXY.x, staand.wasteXY.x], 'oudere kaarten blijven liggen');
-  assert.ok(p[4].x > p[3].x && p[3].x > p[2].x, 'de bovenste drie schuiven opzij');
-  assert.deepEqual(p.slice(2).map((x) => x.y), [staand.wasteXY.y, staand.wasteXY.y, staand.wasteXY.y]);
-  assert.deepEqual(place(g, staand).map((x) => x.x), p.map(() => staand.wasteXY.x), 'zonder de variant liggen ze op elkaar');
-
-  const L = measure(...SIZES.liggend);
-  const q = place(g, L, 3).filter((x) => x.loc.type === 'waste');
-  assert.ok(q[4].y > q[3].y && q[3].y > q[2].y, 'liggend schuiven ze naar onderen');
-  assert.ok(new Set(q.map((x) => x.x)).size === 1);
-});
-
-for (const [naam, [W, H]] of Object.entries(SIZES)) {
-  test(`${naam}: de drie kaarten van de aflegstapel blijven binnen het bord`, () => {
+  g.waste = [c(0, 2), c(0, 3), c(0, 4), c(0, 5)]; // de 5 ligt bovenaan
+  for (const [naam, [W, H]] of Object.entries(SIZES)) {
     const L = measure(W, H);
-    const g = empty();
-    g.waste = [c(0, 2), c(0, 3), c(0, 4)];
-    for (const p of place(g, L, 3)) assert.ok(p.x + L.cw <= W + 1 && p.y + L.ch <= H + 1, `kaart valt buiten ${W}x${H}`);
-  });
-}
+    const p = place(g, L).filter((x) => x.loc.type === 'waste');
+    assert.equal(p.length, 4);
+    for (const q of p) {
+      assert.equal(q.x, p[0].x, `${naam}: alle aflegkaarten liggen op dezelfde plek`);
+      assert.equal(q.y, p[0].y);
+      assert.ok(q.x + L.cw <= W + 1 && q.y + L.ch <= H + 1, `${naam}: kaart valt buiten het bord`);
+    }
+    assert.deepEqual(p.map((q) => q.z), [0, 1, 2, 3], 'de bovenste kaart ligt bovenop');
+  }
+});
 
 test('de funderingen hebben een eigen laag, ook als er een volle fundering naast een lege ligt', () => {
   const g = empty();

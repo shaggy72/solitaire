@@ -11,7 +11,6 @@ const UP_TYPICAL = 0.22; // waar het bord op gedimensioneerd wordt
 const UP_MAX = 0.32;
 const COLUMN = 1 + 6 * DOWN_FAN + 9 * UP_TYPICAL; // een lange kolom, in kaarthoogtes (langere worden samengedrukt)
 const LANDSCAPE_FROM = 1.2; // breedte/hoogte vanaf waar we de liggende indeling gebruiken
-const WASTE_FAN = 0.32; // zoveel schuiven de bovenste kaarten van de aflegstapel opzij (of omlaag)
 
 export function measure(W, H) {
   const pad = Math.max(8, Math.round(W * 0.012));
@@ -54,23 +53,10 @@ export function measure(W, H) {
 }
 
 // Geeft voor elke kaart { card, loc, x, y, z }.
-// Met drawCount 3 waaieren de bovenste drie kaarten van de aflegstapel: in staand beeld opzij
-// (er is plaats naast de stapel), in liggend beeld naar onderen (naast de stapel staan kolommen).
-export function place(state, L, drawCount = 1) {
+export function place(state, L) {
   const out = [];
-  const fan = drawCount > 1 ? drawCount : 0;
   state.stock.forEach((card, i) => out.push({ card, loc: { type: 'stock' }, ...L.stockXY, z: i }));
-  state.waste.forEach((card, i) => {
-    const fromEnd = state.waste.length - 1 - i; // 0 = de bovenste kaart
-    const step = fan && fromEnd < fan ? fan - 1 - fromEnd : 0;
-    out.push({
-      card,
-      loc: { type: 'waste' },
-      x: L.wasteXY.x + (L.mode === 'portrait' ? step * WASTE_FAN * L.cw : 0),
-      y: L.wasteXY.y + (L.mode === 'portrait' ? 0 : step * WASTE_FAN * L.ch),
-      z: i,
-    });
-  });
+  state.waste.forEach((card, i) => out.push({ card, loc: { type: 'waste' }, ...L.wasteXY, z: i }));
   // Elke fundering krijgt een eigen laag, zodat de bovenste kaart van een volle fundering niet over de volgende ligt.
   state.foundations.forEach((f, fi) => f.forEach((card, i) => out.push({ card, loc: { type: 'foundation', i: fi }, ...L.foundXY(fi), z: fi * 20 + i })));
   state.tableau.forEach((pile, col) => {

@@ -70,7 +70,7 @@ export default function App() {
 
   const measured = size.W > 0 && size.H > 0; // pas tekenen na de eerste meting, anders vliegen de kaarten bij het openen naar hun plek
   const L = useMemo(() => measure(size.W || 800, size.H || 600), [size]);
-  const placed = useMemo(() => place(game, L, drawCount), [game, L, drawCount]);
+  const placed = useMemo(() => place(game, L), [game, L]);
 
   // Animaties: een kaart die verhuist komt even bovenop te liggen en krijgt een landingseffect;
   // een kaart die omdraait, draait zichtbaar om. De klassen verdwijnen weer, zodat dezelfde
