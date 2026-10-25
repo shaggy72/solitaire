@@ -125,6 +125,23 @@ test('een verhuisde kaart landt met een effect, een opengelegde kaart draait om'
   await expect(page.locator('.card.landed')).toHaveCount(0, { timeout: 3000 }); // daarna is de kaart weer gewoon
 });
 
+test('drie kaarten per keer: de keuze blijft bewaard en de bovenste drie waaieren', async ({ page }) => {
+  await page.goto(srv.base);
+  await page.getByRole('button', { name: /per keer/ }).click();
+  await expect(page.locator('.message')).toContainText('3 kaarten per keer');
+  await page.locator('.card[data-pile="stock"]').last().click();
+  await expect(page.locator('.card.up')).toHaveCount(10); // 7 open op de tafel + 3 getrokken
+  const plekken = await page.locator('.card[data-pile="waste"]').evaluateAll((els) => els.map((e) => {
+    const r = e.getBoundingClientRect();
+    return `${Math.round(r.x)},${Math.round(r.y)}`;
+  }));
+  expect(new Set(plekken).size).toBe(3); // de drie liggen niet op elkaar
+  await page.reload();
+  await expect(page.locator('.card.up')).toHaveCount(10); // de keuze en het spel blijven bewaard
+  await page.getByRole('button', { name: /per keer/ }).click();
+  await expect(page.locator('.message')).toContainText('1 kaart per keer');
+});
+
 test('een korte tik na slepen blijft een gewone tik (kaart kiezen)', async ({ page }) => {
   await page.addInitScript((game) => localStorage.setItem('solitaire-v1', JSON.stringify({ game, history: [] })), vastSpel());
   await page.goto(srv.base);

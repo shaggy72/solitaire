@@ -30,3 +30,12 @@ export function loadTheme() {
 export function saveTheme(id) {
   try { localStorage.setItem(THEME_KEY, id); } catch { /* opslag niet beschikbaar */ }
 }
+
+// Hoeveel kaarten er per keer van de stapel gaan: 1 of 3 (de driekaartvariant).
+const DRAW_KEY = 'solitaire-draw';
+export function loadDraw() {
+  try { return Number(localStorage.getItem(DRAW_KEY)) === 3 ? 3 : 1; } catch { return 1; }
+}
+export function saveDraw(count) {
+  try { localStorage.setItem(DRAW_KEY, String(count === 3 ? 3 : 1)); } catch { /* opslag niet beschikbaar */ }
+}

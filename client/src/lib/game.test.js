@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  deal, draw, move, canMove, hint, isWon, canAutoFinish, autoFoundationMove, fitsTableau, fitsFoundation,
+  deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, fitsTableau, fitsFoundation,
   foundationFor, findMoves, push, MAX_HISTORY,
 } from './game.js';
 
@@ -51,6 +51,26 @@ test('trekken: kaart gaat open naar de aflegstapel; lege stapel wordt teruggeleg
   assert.equal(g.stock.length, 2);
   assert.ok(g.stock.every((x) => !x.up));
   assert.equal(draw(g).waste[0].r, 5, 'zelfde volgorde als de eerste keer');
+});
+
+test('drie kaarten trekken: drie gaan open, alleen de bovenste is speelbaar, de rest blijft op de stapel', () => {
+  let g = { ...empty(), stock: [c(0, 1, false), c(0, 2, false), c(0, 3, false), c(0, 4, false)] }; // de 4 ligt bovenaan
+  g = draw(g, 3);
+  // Je draait de bovenste drie om als één pakketje: de derde kaart van de stapel komt bovenop te liggen.
+  assert.deepEqual(g.waste.map((x) => x.r), [4, 3, 2]);
+  assert.ok(g.waste.every((x) => x.up));
+  assert.deepEqual(g.stock.map((x) => x.r), [1]);
+  assert.equal(g.moves, 1);
+  assert.deepEqual(grab(g, { type: 'waste' }), [g.waste[2]], 'enkel de bovenste kaart is te pakken');
+
+  const bijna = draw({ ...empty(), stock: [c(0, 5, false), c(0, 6, false)] }, 3);
+  assert.deepEqual(bijna.waste.map((x) => x.r), [6, 5], 'aan het einde neem je wat er nog is');
+  assert.equal(bijna.stock.length, 0);
+
+  const terug = draw({ ...empty(), stock: [], waste: [c(0, 7), c(0, 8), c(0, 9)] }, 3);
+  assert.equal(terug.stock.length, 3);
+  assert.ok(terug.stock.every((x) => !x.up));
+  assert.deepEqual(draw(terug, 3).waste.map((x) => x.r), [7, 8, 9], 'zelfde volgorde als de eerste keer');
 });
 
 test('verplaatsen van een stapel meerdere kaarten draait de kaart eronder om (+5)', () => {

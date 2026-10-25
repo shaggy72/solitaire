@@ -3,7 +3,7 @@ import {
   deal, draw, move, canMove, grab, hint, isWon, canAutoFinish, autoFoundationMove, foundationFor, push, isRed,
 } from './lib/game.js';
 import { measure, place, cardKey, dropTarget } from './lib/layout.js';
-import { loadSaved, save, loadTheme, saveTheme } from './lib/storage.js';
+import { loadSaved, save, loadTheme, saveTheme, loadDraw, saveDraw } from './lib/storage.js';
 import { THEMES, themeById } from './lib/themes.js';
 import CardFace from './CardArt.jsx';
 import Confetti from './Confetti.jsx';
@@ -18,8 +18,8 @@ const DRAG_START_PX = 8;
 const sameLoc = (a, b) => a && b && a.type === b.type && a.col === b.col && a.i === b.i && a.index === b.index;
 const destOf = (loc) => (loc.type === 'tableau' ? { type: 'tableau', col: loc.col } : loc.type === 'foundation' ? { type: 'foundation', i: loc.i } : null);
 
-function describeTip(game, tip) {
-  if (tip.kind === 'draw') return 'Trek een kaart van de stapel linksboven.';
+function describeTip(game, tip, drawCount = 1) {
+  if (tip.kind === 'draw') return drawCount > 1 ? `Trek ${drawCount} kaarten van de stapel linksboven.` : 'Trek een kaart van de stapel linksboven.';
   if (tip.kind === 'stuck') return 'Er zijn geen zetten meer. Maak een zet ongedaan of begin een nieuw spel.';
   if (tip.kind === 'won') return 'Het spel is al uitgespeeld!';
   const card = tip.cards[0];
@@ -40,6 +40,7 @@ export default function App() {
   const [confirmNew, setConfirmNew] = useState(false);
   const [auto, setAuto] = useState(false);
   const [themeId, setThemeId] = useState(() => themeById(loadTheme()).id);
+  const [drawCount, setDrawCount] = useState(() => loadDraw());
   const [pickTheme, setPickTheme] = useState(false);
   const theme = themeById(themeId);
   const [size, setSize] = useState({ W: 0, H: 0 });
@@ -52,6 +53,11 @@ export default function App() {
 
   useEffect(() => { save(game, history); }, [game, history]);
   const chooseTheme = (id) => { setThemeId(id); saveTheme(id); setPickTheme(false); };
+  const toggleDraw = () => {
+    const n = drawCount === 3 ? 1 : 3;
+    setDrawCount(n); saveDraw(n); setTip(null);
+    setMsg(n === 3 ? 'Je trekt nu 3 kaarten per keer: alleen de bovenste is speelbaar.' : 'Je trekt nu weer 1 kaart per keer.');
+  };
 
   useLayoutEffect(() => {
     const el = boardRef.current;
@@ -64,7 +70,7 @@ export default function App() {
 
   const measured = size.W > 0 && size.H > 0; // pas tekenen na de eerste meting, anders vliegen de kaarten bij het openen naar hun plek
   const L = useMemo(() => measure(size.W || 800, size.H || 600), [size]);
-  const placed = useMemo(() => place(game, L), [game, L]);
+  const placed = useMemo(() => place(game, L, drawCount), [game, L, drawCount]);
 
   // Animaties: een kaart die verhuist komt even bovenop te liggen en krijgt een landingseffect;
   // een kaart die omdraait, draait zichtbaar om. De klassen verdwijnen weer, zodat dezelfde
@@ -131,7 +137,7 @@ export default function App() {
     const t = hint(game);
     setSel(null);
     setTip(t);
-    setMsg(describeTip(game, t));
+    setMsg(describeTip(game, t, drawCount));
   };
 
   const newGame = () => {
@@ -141,7 +147,7 @@ export default function App() {
 
   const onTap = (loc) => {
     if (auto || won) return;
-    if (loc.type === 'stock') { commit(draw(game)); return; }
+    if (loc.type === 'stock') { commit(draw(game, drawCount)); return; }
     const now = Date.now();
     const dbl = sameLoc(lastTap.current.loc, loc) && now - lastTap.current.t < DOUBLE_TAP_MS;
     lastTap.current = { loc, t: now };
@@ -198,7 +204,7 @@ export default function App() {
     setTimeout(() => { suppressClick.current = false; }, 60);
     setDrag(null);
     if (cancelled) return;
-    const first = placed.find((p) => sameLoc(p.loc, d.loc));
+    const first = placed.filter((p) => sameLoc(p.loc, d.loc)).pop(); // bij de aflegstapel: de bovenste kaart
     if (!first) return;
     const to = dropTarget(game, L, d.loc, first.x + (e.clientX - d.x0) + L.cw / 2, first.y + (e.clientY - d.y0) + L.ch / 2);
     if (to) commit(move(game, d.loc, to));
@@ -234,6 +240,7 @@ export default function App() {
           <button className="btn" onClick={onUndo} disabled={!history.length || auto}>↩ Ongedaan maken</button>
           <button className="btn" onClick={onTip} disabled={auto || won}>💡 Tip</button>
           <button className="btn" onClick={() => setPickTheme(true)}>🎴 Kaarten</button>
+          <button className="btn quiet" onClick={toggleDraw} title="Hoeveel kaarten je per keer van de stapel trekt" aria-label={`Trekken: ${drawCount} per keer`}>🂠 {drawCount} per keer</button>
           <button className="btn quiet" onClick={askNew}>Nieuw spel</button>
         </div>
       </header>

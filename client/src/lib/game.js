@@ -110,12 +110,15 @@ export function move(state, from, to) {
   return next;
 }
 
-// Trek een kaart uit de stapel; is die leeg, leg dan de aflegstapel terug (zonder strafpunten).
-export function draw(state) {
+// Trek kaarten uit de stapel (1, of 3 bij de driekaartvariant); is die leeg, leg dan de aflegstapel
+// terug (zonder strafpunten). Bij 3 kaarten is enkel de bovenste speelbaar; de andere komen vrij
+// zodra je die weglegt.
+export function draw(state, count = 1) {
   if (state.stock.length) {
+    const n = Math.max(1, Math.min(count, state.stock.length));
     const stock = state.stock.slice();
-    const c = stock.pop();
-    return { ...state, stock, waste: [...state.waste, { ...c, up: true }], moves: state.moves + 1 };
+    const taken = stock.splice(stock.length - n, n).reverse(); // de bovenste kaart eerst op de aflegstapel
+    return { ...state, stock, waste: [...state.waste, ...taken.map((c) => ({ ...c, up: true }))], moves: state.moves + 1 };
   }
   if (!state.waste.length) return state;
   const stock = state.waste.slice().reverse().map((c) => ({ ...c, up: false }));
